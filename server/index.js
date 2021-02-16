@@ -1,41 +1,58 @@
-const path = require('path')
-const { Client, Collection } = require('discord.js')
-const dotenv = require('dotenv')
+const path = require("path");
+const { Client, Collection } = require("discord.js");
 
-const filewalker = require('./library/walk.js')
-const socketInterface = require('./rest/interface.js')
+const api = require("./api");
+const filewalker = require("./library/walk.js");
 
-dotenv.config()
+const dotenv = require("dotenv");
+dotenv.config();
 
-const init = async (settings = {
-  token: process.env.BOT_TOKEN,
-  fallbackPrefix: '>>', // the prefix to use if the guild has not defined their own. (a.k.a the default prefix.)
-  blacklistedUsers: [],
-  blacklistedGuilds: [],
-  sharding: false // only set this to true when the bot hits 1000 Guilds.
-}) => {
-  const bot = new Client()
-  bot.commands = new Collection()
-  bot.settings = settings
-  bot.logger = require('./library/logger.js')
+const db = require("./models");
+db.sequelize.sync();
 
-  const commands = await filewalker.walk(path.join(__dirname, './commands'))
-  const events = await filewalker.walk(path.join(__dirname, './events'))
+init = async (
+    settings = {
+        token: process.env.BOT_TOKEN,
+        fallbackPrefix: process.env.BOT_PREFIX,
+        blacklistedUsers: [],
+        blacklistedGuilds: [],
+        sharding: false,
+    }
+) => {
+    const client = new Client();
 
-  events.forEach((event) => {
-    const time = new Date().getMilliseconds()
-    bot.on(event.name.split('.')[0], require(event.path).bind(null, bot))
-    console.log(`[EVENT] loaded event ${event.name} in ${new Date().getMilliseconds() - time}ms`)
-  })
+    client.commands = new Collection();
+    client.settings = settings;
+    client.logger = require("./library/logger.js");
 
-  commands.forEach((command) => {
-    const time = new Date().getMilliseconds()
-    bot.commands.set(command.name.split('.')[0], require(command.path))
-    console.log(`[COMMAND] loaded command ${command.name} in ${new Date().getMilliseconds() - time}ms`)
-  })
+    const commands = await filewalker.walk(path.join(__dirname, "commands"));
+    const events = await filewalker.walk(path.join(__dirname, "events"));
 
-  await socketInterface.init(bot)
-  await bot.login(settings.token)
+    events.forEach((event) => {
+        const time = new Date().getMilliseconds();
+        client.on(
+            event.name.split(".")[0],
+            require(event.path).bind(null, client)
+        );
+        console.log(
+            `[EVENT] loaded event ${event.name} in ${
+                new Date().getMilliseconds() - time
+            }ms`
+        );
+    });
+
+    commands.forEach((command) => {
+        const time = new Date().getMilliseconds();
+        client.commands.set(command.name.split(".")[0], require(command.path));
+        console.log(
+            `[COMMAND] loaded command ${command.name} in ${
+                new Date().getMilliseconds() - time
+            }ms`
+        );
+    });
+
+    await api.init();
+    await client.login(settings.token);
 }
 
-init()
+init();
