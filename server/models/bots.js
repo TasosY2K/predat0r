@@ -7,6 +7,10 @@ module.exports = (sequelize, Sequelize) => {
         token: {
             type: Sequelize.STRING,
             allowNull: false,
+        },
+        ipAddress: {
+            type: Sequelize.STRING,
+            allowNull: false,
         }
     });
     return Bot;

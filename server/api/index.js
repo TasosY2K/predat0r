@@ -4,7 +4,9 @@ const filewalker = require("../library/walk.js");
 
 const application = express();
 
-async function init() {
+application.set("json spaces", 2);
+
+const init = async () => {
     const routes = await filewalker.walk(path.join(__dirname, "routes"));
 
     routes.forEach((route) => {
@@ -15,6 +17,18 @@ async function init() {
                 new Date().getMilliseconds() - time
             }ms`
         );
+    });
+
+    application.get("/", (req, res) => {
+        res.status(200).json({
+            message: "API operational"
+        })
+    });
+
+    application.get("*", (req, res) => {
+        res.status(418).json({
+            message: "I'm a teapot"
+        })
     });
 
     const listener = application.listen(process.env.PANEL_PORT, function () {
