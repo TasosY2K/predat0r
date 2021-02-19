@@ -4,6 +4,7 @@ const filewalker = require("../library/walk.js");
 
 const application = express();
 
+application.use(express.json());
 application.set("json spaces", 2);
 
 const init = async () => {

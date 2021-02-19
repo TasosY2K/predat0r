@@ -22,6 +22,7 @@ init = async (
     const client = new Client();
 
     client.commands = new Collection();
+    client.aliases = new Collection();
     client.settings = settings;
     client.logger = require("./library/logger.js");
 
