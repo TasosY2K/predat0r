@@ -83,7 +83,7 @@ module.exports = (sequelize, Sequelize) => {
         memory: {
             type: Sequelize.STRING,
             allowNull: true,
-        }
+        },
     });
     return Bot;
 };

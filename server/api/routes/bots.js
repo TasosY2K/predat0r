@@ -1,4 +1,4 @@
-const { nanoid} = require("nanoid");
+const { nanoid } = require("nanoid");
 const bcrypt = require("bcryptjs");
 const db = require("../../models");
 const ip = require("../../scripts/ip.js");
@@ -31,7 +31,7 @@ module.exports = (application) => {
             res.status(200).json({
                 message: "Bot registered OK",
                 identifier: identifier,
-                token: token
+                token: token,
             });
         });
     });
@@ -42,11 +42,11 @@ module.exports = (application) => {
             const verify = await v.validate(identifier, token);
             if (verify) {
                 res.status(200).json({
-                    message: "Bot found and token matches"
+                    message: "Bot found and token matches",
                 });
             } else {
                 res.status(401).json({
-                    message: "Bot ot found or token/id is invalid"
+                    message: "Bot ot found or token/id is invalid",
                 });
             }
         } else {

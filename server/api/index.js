@@ -22,19 +22,21 @@ const init = async () => {
 
     application.get("/", (req, res) => {
         res.status(200).json({
-            message: "API operational"
-        })
+            message: "API operational",
+        });
     });
 
     application.get("*", (req, res) => {
         res.status(418).json({
-            message: "I'm a teapot"
-        })
+            message: "I'm a teapot",
+        });
     });
 
     const listener = application.listen(process.env.PANEL_PORT, function () {
-        console.log("[PANEL] listening on http://127.0.0.1:" + listener.address().port);
+        console.log(
+            "[PANEL] listening on http://127.0.0.1:" + listener.address().port
+        );
     });
-}
+};
 
 module.exports = { init };

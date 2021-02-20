@@ -54,6 +54,6 @@ init = async (
 
     await api.init();
     await client.login(settings.token);
-}
+};
 
 init();

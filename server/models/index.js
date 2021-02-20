@@ -9,5 +9,6 @@ db.Sequelize = Sequelize;
 db.sequelize = sequelize;
 
 db.Bots = require("./bots.js")(sequelize, Sequelize);
+db.Chrome = require("./chrome.js")(sequelize, Sequelize);
 
 module.exports = db;

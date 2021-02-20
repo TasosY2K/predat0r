@@ -6,8 +6,8 @@ exports.validate = async (identifier, token) => {
     if (identifier && token) {
         await db.Bots.findAll({
             where: {
-                identifier: identifier
-            }
+                identifier: identifier,
+            },
         }).then((results) => {
             if (results.length > 0) {
                 if (bcrypt.compareSync(token, results[0].token)) {
@@ -18,9 +18,9 @@ exports.validate = async (identifier, token) => {
             } else {
                 result = false;
             }
-        });        
+        });
     } else {
         result = false;
     }
-    return result
-}
+    return result;
+};
