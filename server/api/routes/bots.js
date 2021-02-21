@@ -1,8 +1,8 @@
 const { nanoid } = require("nanoid");
 const bcrypt = require("bcryptjs");
 const db = require("../../models");
-const ip = require("../../scripts/ip.js");
-const v = require("../../scripts/verifier.js");
+const ip = require("../../library/ip.js");
+const v = require("../../library/verifier.js");
 
 module.exports = (application) => {
     application.post("/bots/register", async (req, res) => {

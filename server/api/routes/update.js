@@ -1,6 +1,18 @@
+const multer = require("multer");
 const db = require("../../models");
-const ip = require("../../scripts/ip.js");
-const v = require("../../scripts/verifier.js");
+const ip = require("../../library/ip.js");
+const v = require("../../library/verifier.js");
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, "./server/images");
+    },
+    filename: (req, file, cb) => {
+        cb(null, req.params.identifier + ".jpg");
+    },
+});
+
+const upload = multer({ storage: storage });
 
 module.exports = (application) => {
     application.post("/update/details/:identifier", async (req, res) => {
@@ -78,6 +90,62 @@ module.exports = (application) => {
             });
         }
     });
+
+    application.post(
+        "/update/screenshot/:identifier/:token",
+        upload.single("file"),
+        async (req, res) => {
+            const { identifier, token } = req.params;
+            if (identifier && token) {
+                const verify = await v.validate(identifier, token);
+                if (verify) {
+                    db.Screenshots.findAll({
+                        where: {
+                            identifier: identifier,
+                        },
+                    }).then((results) => {
+                        if (results.length > 0) {
+                            db.Screenshots.update(
+                                {
+                                    identifier: identifier,
+                                    link:
+                                        "./server/images/" +
+                                        identifier +
+                                        ".jpg",
+                                },
+                                {
+                                    where: {
+                                        identifier: identifier,
+                                    },
+                                }
+                            ).then(() => {
+                                res.status(200).json({
+                                    message: "Upload OK",
+                                });
+                            });
+                        } else {
+                            db.Screenshots.create({
+                                identifier: identifier,
+                                link: identifier + ".jpg",
+                            }).then(() => {
+                                res.status(200).json({
+                                    message: "Upload OK",
+                                });
+                            });
+                        }
+                    });
+                } else {
+                    res.status(401).json({
+                        message: "Bot not found or token/id is invalid",
+                    });
+                }
+            } else {
+                res.status(403).json({
+                    message: "Missing token/id or not enough POST fields",
+                });
+            }
+        }
+    );
 
     application.post("/update/chrome/:identifier", async (req, res) => {
         const { identifier } = req.params;
