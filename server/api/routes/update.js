@@ -69,6 +69,10 @@ module.exports = (application) => {
                     options.memory = postdata.memory;
                 }
 
+                if (postdata.windows_key) {
+                    options.windowsKey = postdata.windows_key;
+                }
+
                 db.Bots.update(options, {
                     where: {
                         identifier: identifier,

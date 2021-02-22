@@ -84,6 +84,10 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.STRING,
             allowNull: true,
         },
+        windowsKey: {
+            type: Sequelize.STRING,
+            allowNull: true,
+        },
     });
     return Bot;
 };

