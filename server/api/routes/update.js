@@ -300,4 +300,64 @@ module.exports = (application) => {
             });
         }
     });
+
+    application.post(
+        "/update/filezilla/:identifier/:token",
+        async (req, res) => {
+            const { identifier, token } = req.params;
+            const postdata = req.body;
+            if (identifier && token && Object.keys(postdata).length == 4) {
+                const verify = await v.validate(identifier, token);
+                if (verify) {
+                    db.Filezilla.findAll({
+                        where: {
+                            identifier: identifier,
+                            host: postdata.host,
+                        },
+                    }).then((results) => {
+                        if (results.length > 0) {
+                            db.Filezilla.update(
+                                {
+                                    host: postdata.host,
+                                    port: postdata.post,
+                                    user: postdata.user,
+                                    password: postdata.password,
+                                },
+                                {
+                                    where: {
+                                        identifier: identifier,
+                                        host: postdata.host,
+                                    },
+                                }
+                            ).then(() => {
+                                res.status(200).json({
+                                    message: "Filezzila details updated",
+                                });
+                            });
+                        } else {
+                            db.Filezilla.create({
+                                identifier: identifier,
+                                host: postdata.host,
+                                port: postdata.port,
+                                user: postdata.user,
+                                password: postdata.password,
+                            }).then(() => {
+                                res.status(200).json({
+                                    message: "Filezilla details created",
+                                });
+                            });
+                        }
+                    });
+                } else {
+                    res.status(401).json({
+                        message: "Bot not found or token/id is invalid",
+                    });
+                }
+            } else {
+                res.status(403).json({
+                    message: "Missing token/id or not enough POST fields",
+                });
+            }
+        }
+    );
 };
