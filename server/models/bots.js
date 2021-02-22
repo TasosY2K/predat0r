@@ -88,6 +88,11 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.STRING,
             allowNull: true,
         },
+        logSize: {
+            type: Sequelize.STRING,
+            allowNull: false,
+            defaultValue: 0
+        }
     });
     return Bot;
 };

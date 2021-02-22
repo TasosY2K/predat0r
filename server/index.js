@@ -15,6 +15,10 @@ if (!fs.existsSync("./server/images")) {
     fs.mkdirSync("./server/images");
 }
 
+if (!fs.existsSync("./server/logs")) {
+    fs.mkdirSync("./server/logs");
+}
+
 init = async (
     settings = {
         token: process.env.BOT_TOKEN,

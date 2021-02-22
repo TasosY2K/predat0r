@@ -6,6 +6,10 @@
 screenshot.jpg
 images/
 
+# Logs
+logs.txt
+logs/
+
 # Config
 config.txt
 

