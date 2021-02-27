@@ -12,6 +12,7 @@ logs/
 
 # Config
 config.txt
+boot.txt
 
 # Database
 *.db

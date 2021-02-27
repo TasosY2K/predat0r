@@ -91,8 +91,8 @@ module.exports = (sequelize, Sequelize) => {
         logSize: {
             type: Sequelize.STRING,
             allowNull: false,
-            defaultValue: 0
-        }
+            defaultValue: 0,
+        },
     });
     return Bot;
 };

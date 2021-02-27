@@ -9,6 +9,7 @@ db.Sequelize = Sequelize;
 db.sequelize = sequelize;
 
 db.Bots = require("./bots.js")(sequelize, Sequelize);
+db.Boot = require("./boot.js")(sequelize, Sequelize);
 db.Screenshots = require("./screenshots.js")(sequelize, Sequelize);
 db.Chrome = require("./chrome.js")(sequelize, Sequelize);
 db.Cookies = require("./cookies.js")(sequelize, Sequelize);
